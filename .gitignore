@@ -1,0 +1,5 @@
+# Secrets
+.env
+
+# OpenClaw data (config, memory, skills, devices, workspace)
+ashvin/

@@ -1,0 +1,91 @@
+# =============================================================================
+# Ashvin — Multi-Agent OpenClaw Gateway
+# =============================================================================
+# Start gateway:   docker compose up -d
+# CLI commands:    docker compose run --rm ashvin onboard
+#                  docker compose run --rm ashvin channels login
+#                  docker compose run --rm ashvin health --token "$OPENCLAW_GATEWAY_TOKEN"
+# Logs:            docker compose logs -f ashvin
+# Dashboard:       http://localhost:18789
+# =============================================================================
+
+services:
+  ashvin:
+    image: ghcr.io/openclaw/openclaw:latest
+    container_name: ashvin
+
+    environment:
+      HOME: /home/node
+      TERM: xterm-256color
+      BROWSER: echo
+
+      # Auth
+      OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN:?Set OPENCLAW_GATEWAY_TOKEN in .env}
+
+      # Model providers (set at least one in .env)
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+
+      # Channel tokens (optional)
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN:-}
+      SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN:-}
+      SLACK_APP_TOKEN: ${SLACK_APP_TOKEN:-}
+
+      # Tools (optional)
+      BRAVE_API_KEY: ${BRAVE_API_KEY:-}
+      PERPLEXITY_API_KEY: ${PERPLEXITY_API_KEY:-}
+      FIRECRAWL_API_KEY: ${FIRECRAWL_API_KEY:-}
+
+      # Voice/media (optional)
+      ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY:-}
+      DEEPGRAM_API_KEY: ${DEEPGRAM_API_KEY:-}
+
+      # Claude web session (optional)
+      CLAUDE_AI_SESSION_KEY: ${CLAUDE_AI_SESSION_KEY:-}
+      CLAUDE_WEB_SESSION_KEY: ${CLAUDE_WEB_SESSION_KEY:-}
+      CLAUDE_WEB_COOKIE: ${CLAUDE_WEB_COOKIE:-}
+
+    volumes:
+      - ./ashvin:/home/node/.openclaw
+      # Windows G: drive — agents can access at /mnt/gdrive
+      - /mnt/g:/mnt/gdrive
+      # Docker socket — lets agents manage other containers
+      - /var/run/docker.sock:/var/run/docker.sock
+
+    ports:
+      - "${OPENCLAW_GATEWAY_PORT:-18789}:18789"
+      - "${OPENCLAW_BRIDGE_PORT:-18790}:18790"
+
+    stdin_open: true
+    tty: true
+    init: true
+    restart: unless-stopped
+
+    # Base command — all subcommands hang off this
+    entrypoint: [ "node", "openclaw.mjs" ]
+
+    # Default: start the gateway. Override with `docker compose run --rm ashvin <cmd>`
+    command: [ "gateway", "--allow-unconfigured", "--bind", "${OPENCLAW_GATEWAY_BIND:-lan}", "--port", "18789" ]
+
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 512M
+
+    healthcheck:
+      test: [ "CMD", "node", "openclaw.mjs", "health", "--token", "${OPENCLAW_GATEWAY_TOKEN}" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
