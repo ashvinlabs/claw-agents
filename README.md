@@ -6,7 +6,7 @@ A production-ready Docker setup for running [OpenClaw](https://github.com/opencl
 
 ```bash
 # 1. Clone this repo
-git clone https://github.com/ashvinlabs/claw-agents.git && cd claw-agents
+git clone git@github.com:ashvinlabs/claw-agents.git && cd claw-agents
 
 # 2. Configure your environment
 cp .env.example .env
@@ -46,11 +46,19 @@ docker compose run --rm ashvin config
 |-----------|---------|
 | **Image** | `ghcr.io/openclaw/openclaw:latest` |
 | **Ports** | `18789` (gateway/dashboard), `18790` (bridge) |
-| **Data** | `./ashvin/` — config, memory, skills, devices, workspace |
-| **Memory limit** | 4GB (configurable) |
-| **Healthcheck** | Every 30s, 3 retries, auto-restart |
+| **Data** | `./ashvin/` — all config, memory, skills, devices, workspace |
+| **Memory limit** | 4GB cap / 512MB reserved |
+| **Healthcheck** | Every 30s, 3 retries, auto-restart on failure |
 | **Log rotation** | 50MB × 5 files |
-| **Restart** | `unless-stopped` |
+| **Restart** | `unless-stopped` — survives crashes and host reboots |
+
+### Volumes
+
+| Mount | Purpose |
+|-------|---------|
+| `./ashvin` → `/home/node/.openclaw` | All OpenClaw state (config, memory, skills, devices, workspace) |
+| `/mnt/g` → `/mnt/gdrive` | Windows G: drive access for agents |
+| `docker.sock` → `docker.sock` | Container management — agents can spin up/manage other containers |
 
 ## Configuration
 
@@ -75,23 +83,17 @@ Configure agents in `./ashvin/openclaw.json`. Each agent gets its own personalit
 
 ## Container Management
 
-The Docker socket is mounted, so agents can manage other containers:
-
-```bash
-# Agents can run docker commands inside the container
-docker ps
-docker run --rm alpine echo "hello from a sub-container"
-```
+The Docker socket is mounted, giving agents the ability to manage sibling containers — spin up services, run one-off tasks, or orchestrate multi-container workflows.
 
 ## Network Connectivity
 
-The gateway binds to LAN by default, so other OpenClaw instances on your network can connect via:
+The gateway binds to LAN by default, making it accessible to other devices and OpenClaw instances on your network:
 
 - **Gateway:** `http://<your-ip>:18789`
 - **Bridge:** `http://<your-ip>:18790`
 
-Set `OPENCLAW_GATEWAY_TOKEN` to the same value across instances to federate them.
+Use the same `OPENCLAW_GATEWAY_TOKEN` across instances to federate them.
 
 ## License
 
-This is a personal deployment configuration for OpenClaw. OpenClaw itself is [MIT licensed](https://github.com/openclaw/openclaw/blob/main/LICENSE).
+This is a deployment configuration for [OpenClaw](https://github.com/openclaw/openclaw) (MIT licensed).
